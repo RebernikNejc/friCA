@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>friCA</title>
+        <link rel="stylesheet" href="../css/bootstrap.css">
+        <link rel="stylesheet" href="../css/custom.css">
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col">
+                    <h1>Preverjanje statusa zahtevka</h1>
+                    <p>Tukaj lahko preverite status vašega zahtevka.</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <form>
+                        <div class="form-row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="id">ID zahtevka</label>
+                                    <input type="text" class="form-control" id="id" placeholder="Vnesite ID zahtevka" required>
+                                  </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="token">Geslo</label>
+                                    <input type="text" class="form-control" id="token" placeholder="Vnesite geslo" required>
+                                  </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary float-left" onclick="cancel()">Nazaj na začetno stran</button>
+                        <button type="button" class="btn btn-primary float-right" onclick="check()">Preveri status zahtevka</button>
+                    </form>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col">
+                    <div class="alert alert-info" role="alert" id="status" style="display: none;">
+                        Status: 
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+        <script type="text/javascript" src="../js/jquery-3.5.1.js"></script>
+        <script type="text/javascript" src="../js/bootstrap.bundle.js"></script>
+        <script type="text/javascript" src="../js/common.js"></script>
+        <script type="text/javascript" src="../js/progress.js"></script>
+        <script>if (window.module) module = window.module;</script>
+    </body>
+</html>

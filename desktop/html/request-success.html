@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>friCA</title>
+        <link rel="stylesheet" href="../css/bootstrap.css">
+        <link rel="stylesheet" href="../css/custom.css">
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col">
+                    <div class="alert alert-success" role="alert">
+                        Zahtevek je bil uspešno oddan!
+                    </div>
+                    <div class="alert alert-info" role="alert">
+                        Shranite si ID in geslo zahtevka, saj sta potrebna za prevzem certifikata!
+                    </div>
+                    <p>ID zahtevka: <span id="id"></span></p>
+                    <p>Geslo zahtevka: <span id="pass"></span></p>
+                    <button type="button" class="btn btn-primary float-right" onclick="cancel()">Nazaj na začetno stran</button>
+                </div>
+            </div>
+        </div>
+        <script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+        <script type="text/javascript" src="../js/jquery-3.5.1.js"></script>
+        <script type="text/javascript" src="../js/bootstrap.bundle.js"></script>
+        <script type="text/javascript" src="../js/common.js"></script>
+        <script type="text/javascript" src="../js/request-success.js"></script>
+        <script>if (window.module) module = window.module;</script>
+    </body>
+</html>

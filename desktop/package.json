@@ -1,0 +1,21 @@
+{
+  "name": "frica",
+  "version": "1.0.0",
+  "description": "friCA desktop client",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nejc Rebernik",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^10.1.2"
+  },
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "jquery": "^3.5.1",
+    "query-string": "^6.13.2",
+    "request": "^2.88.2"
+  }
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>friCA</title>
+        <link rel="stylesheet" href="../css/bootstrap.css">
+        <link rel="stylesheet" href="../css/custom.css">
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col">
+                    <h1>Prevzem digitalnega potrdila</h1>
+                    <p>Tukaj lahko prevzamete vaše novo digitalno potrdilo. Za prevzem potrebujete ID zahtevka in geslo, ki ste ju prejeli pri oddaji.</p>
+                    <form>
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="id">ID zahtevka</label>
+                                    <input type="text" class="form-control" id="id" placeholder="Vnesite ID zahtevka">
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="token">Dostopni žeton</label>
+                                    <input type="text" class="form-control" id="token" placeholder="Vnesite dostopni žeton">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pass">Novo geslo certifikata</label>
+                            <input type="text" class="form-control" id="pass" placeholder="Vnesite novo geslo certifikata">
+                        </div>
+                        <button type="button" class="btn btn-secondary float-left" onclick="cancel()">Nazaj na začetno stran</button>
+                        <button type="button" class="btn btn-success float-right" onclick="deliver()">Prevzemi</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+        <script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+        <script type="text/javascript" src="../js/jquery-3.5.1.js"></script>
+        <script type="text/javascript" src="../js/bootstrap.bundle.js"></script>
+        <script type="text/javascript" src="../js/common.js"></script>
+        <script type="text/javascript" src="../js/deliver.js"></script>
+        <script>if (window.module) module = window.module;</script>
+    </body>
+</html>
