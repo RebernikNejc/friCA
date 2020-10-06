@@ -6,7 +6,7 @@ import javax.persistence.*;
 public class CSREntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue
     private Integer id;
     private String email;
     private String name;
