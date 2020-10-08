@@ -16,8 +16,10 @@ public class CSREntity {
     private String enrollmentId;
     @ManyToOne
     private StatusEntity statusEntity;
-    private String token;
-    private String FilePath;
+    @Lob
+    private byte[] token;
+    @Lob
+    private byte[] encryptedToken;
 
     public Integer getId() {
         return id;
@@ -75,19 +77,19 @@ public class CSREntity {
         this.statusEntity = statusEntity;
     }
 
-    public String getToken() {
+    public byte[] getToken() {
         return token;
     }
 
-    public void setToken(String token) {
+    public void setToken(byte[] token) {
         this.token = token;
     }
 
-    public String getFilePath() {
-        return FilePath;
+    public byte[] getEncryptedToken() {
+        return encryptedToken;
     }
 
-    public void setFilePath(String filePath) {
-        FilePath = filePath;
+    public void setEncryptedToken(byte[] encryptedToken) {
+        this.encryptedToken = encryptedToken;
     }
 }

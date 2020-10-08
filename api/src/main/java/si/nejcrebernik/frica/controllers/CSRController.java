@@ -1,6 +1,15 @@
 package si.nejcrebernik.frica.controllers;
 
 import net.bytebuddy.utility.RandomString;
+import org.bouncycastle.crypto.AsymmetricBlockCipher;
+import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.crypto.engines.RSAEngine;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.bouncycastle.jcajce.provider.util.AsymmetricKeyInfoConverter;
+import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
+import org.bouncycastle.util.io.pem.PemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -12,9 +21,22 @@ import org.springframework.web.server.ResponseStatusException;
 import si.nejcrebernik.frica.CSR;
 import si.nejcrebernik.frica.repositories.*;
 import si.nejcrebernik.frica.entities.CSREntity;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PKCS12Attribute;
+
+import java.security.PublicKey;
+import java.security.cert.PKIXCertPathValidatorResult;
+import java.security.interfaces.RSAPublicKey;
+import java.util.Base64;
 import java.util.Optional;
+import java.util.Random;
 
 @Controller
 @RequestMapping(path = "/csr")
@@ -66,7 +88,7 @@ public class CSRController {
                                          @RequestHeader("name") String name,
                                          @RequestHeader("surname") String surname,
                                          @RequestHeader("country") Integer countryId,
-                                         @RequestHeader("enrollmentId") String enrollmentId) throws IOException {
+                                         @RequestHeader("enrollmentId") String enrollmentId) throws IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidCipherTextException {
         CSR response = new CSR();
 
         CSREntity csrEntity = new CSREntity();
@@ -76,13 +98,34 @@ public class CSRController {
         csrEntity.setCountryEntity(countryRepository.findById(countryId).get());
         csrEntity.setEnrollmentId(enrollmentId);
         csrEntity.setStatusEntity(statusRepository.findById(requestedId).get());
-        String token = RandomString.make(16);
-        csrEntity.setToken(token);
         csrRepository.save(csrEntity);
 
-        response.setId(csrEntity.getId());
-        response.setToken(token);
+        // get public key
+        PemReader pemReader = new PemReader(new InputStreamReader(csr.getInputStream()));
+        JcaPKCS10CertificationRequest jcaPKCS10CertificationRequest = new JcaPKCS10CertificationRequest(pemReader.readPemObject().getContent());
+        RSAPublicKey rsaPublicKey = (RSAPublicKey) jcaPKCS10CertificationRequest.getPublicKey();
+        int keyLength = rsaPublicKey.getModulus().bitLength();
 
+        // generate token
+        Random r = new Random();
+//        String token = RandomString.make(keyLength);
+        keyLength = keyLength / 8;
+        byte[] token = new byte[keyLength];
+        r.nextBytes(token);
+
+        // encrypt token with public key
+        AsymmetricBlockCipher asymmetricBlockCipher = new RSAEngine();
+        RSAKeyParameters rsaKeyParameters = new RSAKeyParameters(false, rsaPublicKey.getModulus(), rsaPublicKey.getPublicExponent());
+        asymmetricBlockCipher.init(true, rsaKeyParameters);
+        byte[] original = token.clone();
+        byte[] encrypted = asymmetricBlockCipher.processBlock(original, 0, original.length);
+        byte[] encryptedMinusOne = asymmetricBlockCipher.processBlock(original, 0, original.length - 1);
+        String encryptedToken = new String(encrypted, StandardCharsets.UTF_8);
+
+        response.setId(csrEntity.getId());
+        response.setEncryptedToken(encrypted);
+
+        // saving to filesystem
         File directory = new File(certsFolder);
         if (!directory.exists()) {
             directory.mkdir();
@@ -92,7 +135,14 @@ public class CSRController {
         fos.write(csr.getBytes());
         fos.close();
 
-        csrEntity.setFilePath(filePath);
+        // saving to S3 bucket
+        S3Client s3Client = S3Client.create();
+        s3Client.putObject(PutObjectRequest.builder().bucket("frica").key(csrEntity.getId().toString() + ".csr").build(),
+                RequestBody.fromBytes(csr.getBytes()));
+        s3Client.close();
+
+        csrEntity.setToken(token);
+        csrEntity.setEncryptedToken(encrypted);
         csrRepository.save(csrEntity);
 
         return response;

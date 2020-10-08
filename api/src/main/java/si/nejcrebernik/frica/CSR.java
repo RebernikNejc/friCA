@@ -12,7 +12,7 @@ public class CSR {
     private String country;
     private String enrollmentId;
     private String status;
-    private String token;
+    private byte[] encryptedToken;
 
     public Integer getId() {
         return id;
@@ -70,11 +70,11 @@ public class CSR {
         this.status = status;
     }
 
-    public String getToken() {
-        return token;
+    public byte[] getEncryptedToken() {
+        return encryptedToken;
     }
 
-    public void setToken(String token) {
-        this.token = token;
+    public void setEncryptedToken(byte[] encryptedToken) {
+        this.encryptedToken = encryptedToken;
     }
 }
