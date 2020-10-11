@@ -3,6 +3,10 @@ const {app, dialog, ipcMain, BrowserWindow} = require("electron");
 const Request = require("request");
 const {exec, execSync} = require("child_process");
 const fs = require("fs");
+const NodeRSA = require("node-rsa");
+
+// const HOST = "https://ec2-18-156-177-102.eu-central-1.compute.amazonaws.com:8443";
+const HOST = "http://127.0.0.1:8443";
 
 function init() {
     ipcMain.handle("open", (event, args) => {
@@ -32,7 +36,7 @@ function init() {
         // make request on API
         console.log(args);
         let req = Request.post({
-            url: "https://ec2-18-156-177-102.eu-central-1.compute.amazonaws.com:8443/csr",
+            url: HOST + "/csr",
             headers: {
                 "name": args.name,
                 "surname": args.surname,
@@ -52,6 +56,7 @@ function init() {
             // rename file
             fs.renameSync(time + ".csr", g.id + ".csr");
             fs.renameSync(time + ".key", g.id + ".key");
+            fs.writeFileSync(g.id + ".token", g.encryptedToken);
             // show confirmation page with info
             win.loadURL(__dirname + "/html/request-success.html?id=" + g.id + "&token=" + g.token);
         });
@@ -59,8 +64,20 @@ function init() {
     });
 
     ipcMain.handle("progress", (event, args) => {
+        let privateKey = new NodeRSA();
+        privateKey.setOptions({
+            encryptionScheme: "pkcs1"
+        });
+        privateKey.importKey(fs.readFileSync(args.id + ".key").toString(), "pkcs8-private");
+
+        let decrypted = private.decrypt(tokfs.readFileSync(args.id + ".token").toString(), "base64");
+
         let req = Request.get({
-            url: "https://ec2-18-156-177-102.eu-central-1.compute.amazonaws.com:8443/csr?id=" + args.id + "&token=" + args.token,
+            url: HOST + "/csr",
+            headers: {
+                id: args.id,
+                token: decrypted
+            },
             rejectUnauthorized: false
         }, (error, response, body) => {
             if (error) {
@@ -76,11 +93,20 @@ function init() {
     });
 
     ipcMain.handle("deliver", (event, args) => {
-        // let link = "https://127.0.0.1:8443/csr/crt?id=" + args.id + "&token=" + args.token;
-        let link = "https://ec2-18-156-177-102.eu-central-1.compute.amazonaws.com:8443/csr/crt?id=" + args.id + "&token=" + args.token;
-        console.log(link);
+        let privateKey = new NodeRSA();
+        privateKey.setOptions({
+            encryptionScheme: "pkcs1"
+        });
+        privateKey.importKey(fs.readFileSync(args.id + ".key").toString(), "pkcs8-private");
+
+        let decrypted = private.decrypt(tokfs.readFileSync(args.id + ".token").toString(), "base64");
+        
         let req = Request.get({
-            url: link,
+            url: HOST + "/csr/crt",
+            headers: {
+                id: args.id,
+                token: decrypted
+            },
             rejectUnauthorized: false
         }, (error, response, body) => {
             if (error) {
