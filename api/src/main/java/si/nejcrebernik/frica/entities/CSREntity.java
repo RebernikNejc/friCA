@@ -16,10 +16,8 @@ public class CSREntity {
     private String enrollmentId;
     @ManyToOne
     private StatusEntity statusEntity;
-    @Lob
-    private byte[] token;
-    @Lob
-    private byte[] encryptedToken;
+    private String token;
+    private String encryptedToken;
 
     public Integer getId() {
         return id;
@@ -77,19 +75,19 @@ public class CSREntity {
         this.statusEntity = statusEntity;
     }
 
-    public byte[] getToken() {
+    public String getToken() {
         return token;
     }
 
-    public void setToken(byte[] token) {
+    public void setToken(String token) {
         this.token = token;
     }
 
-    public byte[] getEncryptedToken() {
+    public String getEncryptedToken() {
         return encryptedToken;
     }
 
-    public void setEncryptedToken(byte[] encryptedToken) {
+    public void setEncryptedToken(String encryptedToken) {
         this.encryptedToken = encryptedToken;
     }
 }

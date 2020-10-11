@@ -1,13 +1,9 @@
 package si.nejcrebernik.frica.controllers;
 
-import net.bytebuddy.utility.RandomString;
-import org.bouncycastle.crypto.AsymmetricBlockCipher;
-import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.crypto.encodings.PKCS1Encoding;
 import org.bouncycastle.crypto.engines.RSAEngine;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
-import org.bouncycastle.jcajce.provider.util.AsymmetricKeyInfoConverter;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,20 +15,17 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import si.nejcrebernik.frica.CSR;
-import si.nejcrebernik.frica.repositories.*;
 import si.nejcrebernik.frica.entities.CSREntity;
+import si.nejcrebernik.frica.repositories.CSRRepository;
+import si.nejcrebernik.frica.repositories.CountryRepository;
+import si.nejcrebernik.frica.repositories.StatusRepository;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PKCS12Attribute;
-
-import java.security.PublicKey;
-import java.security.cert.PKIXCertPathValidatorResult;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 import java.util.Optional;
@@ -104,26 +97,17 @@ public class CSRController {
         PemReader pemReader = new PemReader(new InputStreamReader(csr.getInputStream()));
         JcaPKCS10CertificationRequest jcaPKCS10CertificationRequest = new JcaPKCS10CertificationRequest(pemReader.readPemObject().getContent());
         RSAPublicKey rsaPublicKey = (RSAPublicKey) jcaPKCS10CertificationRequest.getPublicKey();
-        int keyLength = rsaPublicKey.getModulus().bitLength();
-
-        // generate token
-        Random r = new Random();
-//        String token = RandomString.make(keyLength);
-        keyLength = keyLength / 8;
-        byte[] token = new byte[keyLength];
-        r.nextBytes(token);
 
         // encrypt token with public key
-        AsymmetricBlockCipher asymmetricBlockCipher = new RSAEngine();
+        PKCS1Encoding pkcs1Encoding = new PKCS1Encoding(new RSAEngine());
         RSAKeyParameters rsaKeyParameters = new RSAKeyParameters(false, rsaPublicKey.getModulus(), rsaPublicKey.getPublicExponent());
-        asymmetricBlockCipher.init(true, rsaKeyParameters);
-        byte[] original = token.clone();
-        byte[] encrypted = asymmetricBlockCipher.processBlock(original, 0, original.length);
-        byte[] encryptedMinusOne = asymmetricBlockCipher.processBlock(original, 0, original.length - 1);
-        String encryptedToken = new String(encrypted, StandardCharsets.UTF_8);
-
-        response.setId(csrEntity.getId());
-        response.setEncryptedToken(encrypted);
+        pkcs1Encoding.init(true, rsaKeyParameters);
+        // generate token
+        Random r = new Random();
+        byte[] token = new byte[pkcs1Encoding.getInputBlockSize()];
+        r.nextBytes(token);
+        // encrypt
+        byte[] encrypted = pkcs1Encoding.processBlock(token, 0, token.length);
 
         // saving to filesystem
         File directory = new File(certsFolder);
@@ -141,9 +125,12 @@ public class CSRController {
                 RequestBody.fromBytes(csr.getBytes()));
         s3Client.close();
 
-        csrEntity.setToken(token);
-        csrEntity.setEncryptedToken(encrypted);
+        csrEntity.setToken(Base64.getEncoder().encodeToString(token));
+        csrEntity.setEncryptedToken(Base64.getEncoder().encodeToString(encrypted));
         csrRepository.save(csrEntity);
+
+        response.setId(csrEntity.getId());
+        response.setEncryptedToken(Base64.getEncoder().encodeToString(encrypted));
 
         return response;
     }
