@@ -136,8 +136,8 @@ public class CSRController {
     }
 
     @GetMapping(path = "/crt", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-    public @ResponseBody byte[] getCRT(@RequestParam("id") Integer id,
-                                       @RequestParam("token") String token) throws IOException {
+    public @ResponseBody byte[] getCRT(@RequestHeader("id") Integer id,
+                                       @RequestHeader("token") String token) throws IOException {
         Optional<CSREntity> csrEntity = csrRepository.findById(id);
         if (!csrEntity.isPresent()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
