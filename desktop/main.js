@@ -5,8 +5,7 @@ const {exec, execSync} = require("child_process");
 const fs = require("fs");
 const NodeRSA = require("node-rsa");
 
-// const HOST = "https://ec2-18-156-177-102.eu-central-1.compute.amazonaws.com:8443";
-const HOST = "http://127.0.0.1:8443";
+const HOST = "https://frica.herokuapp.com";
 
 function init() {
     ipcMain.handle("open", (event, args) => {
