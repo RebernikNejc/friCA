@@ -54,8 +54,8 @@ public class CSRController {
     private String certsFolder;
 
     @GetMapping
-    public @ResponseBody CSR getCSR(@RequestParam("id") Integer id,
-                                    @RequestParam("token") String token) {
+    public @ResponseBody CSR getCSR(@RequestHeader("id") Integer id,
+                                    @RequestHeader("token") String token) {
         Optional<CSREntity> csrEntity = csrRepository.findById(id);
         if (csrEntity.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
