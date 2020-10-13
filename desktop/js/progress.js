@@ -1,18 +1,24 @@
-function check(event) {
-    let data = {
-        id: $("#id").val(),
-        token: $("#token").val()
-    };
-    ipcRenderer.invoke("progress", data);
-    ipcRenderer.on("progress-status", (event, args) => {
-        if (["Requested", "Approved", "Delivered", "Rejected"].indexOf(args) != -1) {
-            document.getElementById("status").className = "alert alert-info";
-            document.getElementById("status").innerHTML = "Status: " + args;
-        } else {
-            document.getElementById("status").className = "alert alert-danger";
-            document.getElementById("status").innerHTML = "ERROR";
+const fs = require("fs");
+const { request } = require("http");
+const NodeRSA = require("node-rsa");
+
+function init() {
+    // register callback
+    ipcRenderer.on("statuses", (event, args) => {
+        console.log(args);
+        for (let req of args) {
+            // populate list
+            let li = document.createElement("li");
+            li.classList.add("list-group-item");
+            li.innerHTML = "<h6>" + req.name + " " + req.surname + "</h6>Status: " + req.status + "<br><small class='text-muted'>ID zahtevka: " + req.id + "</small>";
+            document.getElementById("requests").appendChild(li);
         }
-        document.getElementById("status").style.display = "";
+        // hide spinner show list
+        document.getElementById("loading").classList.add("d-none");
+        document.getElementById("requests").classList.remove("d-none");
     });
-    return false;
+    // make call to main to execute business logic
+    ipcRenderer.invoke("progress");
 }
+
+init();

@@ -16,7 +16,7 @@
             </div>
             <div class="row">
                 <div class="col">
-                    <form onsubmit="send()">
+                    <form>
                         <div class="form-row">
                             <div class="col">
                                 <div class="form-group">
@@ -52,7 +52,10 @@
                             </select>
                         </div>
                         <button type="button" class="btn btn-secondary float-left" onclick="cancel()">Nazaj na začetno stran</button>
-                        <button type="submit" class="btn btn-primary float-right">Pošlji zahtevek</button>
+                        <button type="button" class="btn btn-primary float-right" id="ss" onclick="send()">Pošlji zahtevek</button>
+                        <div class="spinner-border text-primary float-right d-none" role="status" id="loading">
+                            <span class="sr-only">Loading...</span>
+                          </div>
                     </form>
                 </div>
             </div>

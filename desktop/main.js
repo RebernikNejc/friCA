@@ -5,7 +5,7 @@ const {exec, execSync} = require("child_process");
 const fs = require("fs");
 const NodeRSA = require("node-rsa");
 
-const HOST = "https://frica.herokuapp.com";
+const HOST = "http://127.0.0.1:8443";
 
 function init() {
     ipcMain.handle("open", (event, args) => {
@@ -63,32 +63,69 @@ function init() {
     });
 
     ipcMain.handle("progress", (event, args) => {
-        let privateKey = new NodeRSA();
-        privateKey.setOptions({
-            encryptionScheme: "pkcs1"
-        });
-        privateKey.importKey(fs.readFileSync(args.id + ".key").toString(), "pkcs8-private");
-
-        let decrypted = private.decrypt(tokfs.readFileSync(args.id + ".token").toString(), "base64");
-
-        let req = Request.get({
-            url: HOST + "/csr",
-            headers: {
-                id: args.id,
-                token: decrypted
-            },
-            rejectUnauthorized: false
-        }, (error, response, body) => {
-            if (error) {
-                console.log(error);
-                // show error message
-                event.sender.send("progress-status", "ERROR");
-                return;
+        // find suitable requests
+        let csrs = new Set();
+        let keys = new Set();
+        let tokens = new Set();
+        // find .csr, .key and .token triplets and list them
+        let files = fs.readdirSync(".");
+        for (let file of files) {
+            let s = file.split(".");
+            if (s.length == 2) {
+                if (s[1] == "csr") {
+                    csrs.add(s[0]);
+                }
+                switch (s[1]) {
+                    case "csr":
+                        csrs.add(s[0]);
+                        break;
+                    case "key":
+                        keys.add(s[0]);
+                        break;
+                    case "token":
+                        tokens.add(s[0]);
+                        break;
+                }
             }
-            let g = JSON.parse(body);
-            console.log(g);
-            event.sender.send("progress-status", g.status);
-        });
+        }
+        let valid = new Set([...csrs].filter(x => keys.has(x)));
+        valid = new Set([...valid].filter(x => tokens.has(x)));
+        console.log(valid);
+
+        let loading = valid.size;
+        let results = [];
+
+        for (let id of [...valid].reverse()) {
+            console.log(id);
+            // compute token challenge with NodeRSA
+            let r = fs.readFileSync(id + ".token").toString();
+            let pk = new NodeRSA(fs.readFileSync(id + ".key").toString(), "pkcs8-private", {
+                encryptionScheme: "pkcs1"
+            });
+            let t = pk.decrypt(r, "base64");
+            console.log(loading);
+            let req = Request.get({
+                url: HOST + "/csr",
+                headers: {
+                    id: id,
+                    token: t
+                }
+            }, (error, response, body) => {
+                console.log("callback");
+                if (error) {
+                    console.log(error);
+                    return;
+                }
+                results.push(JSON.parse(body));
+                loading--;
+                console.log(loading);
+                // if loading is finished show page
+                if (loading == 0) {
+                    console.log("done");
+                    event.sender.send("statuses", results);
+                }
+            });
+        }
     });
 
     ipcMain.handle("deliver", (event, args) => {
