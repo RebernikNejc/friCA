@@ -8,6 +8,8 @@ public class CSREntity {
     @Id
     @GeneratedValue
     private Integer id;
+    @ManyToOne
+    private CAParamsEntity caParamsEntity;
     private String email;
     private String name;
     private String surname;
@@ -89,5 +91,13 @@ public class CSREntity {
 
     public void setEncryptedToken(String encryptedToken) {
         this.encryptedToken = encryptedToken;
+    }
+
+    public CAParamsEntity getCaParamsEntity() {
+        return caParamsEntity;
+    }
+
+    public void setCaParamsEntity(CAParamsEntity caParamsEntity) {
+        this.caParamsEntity = caParamsEntity;
     }
 }

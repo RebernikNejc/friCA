@@ -15,21 +15,27 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import si.nejcrebernik.frica.CSR;
+import si.nejcrebernik.frica.entities.CAParamsEntity;
 import si.nejcrebernik.frica.entities.CSREntity;
+import si.nejcrebernik.frica.repositories.CAParamsRepository;
 import si.nejcrebernik.frica.repositories.CSRRepository;
 import si.nejcrebernik.frica.repositories.CountryRepository;
 import si.nejcrebernik.frica.repositories.StatusRepository;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.*;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.Random;
+
+import static si.nejcrebernik.frica.Constants.*;
 
 @Controller
 @RequestMapping(path = "/csr")
@@ -43,6 +49,9 @@ public class CSRController {
 
     @Autowired
     private CountryRepository countryRepository;
+
+    @Autowired
+    private CAParamsRepository caParamsRepository;
 
     @Value("${db.requested.id}")
     private Integer requestedId;
@@ -82,6 +91,30 @@ public class CSRController {
                                          @RequestHeader("surname") String surname,
                                          @RequestHeader("country") Integer countryId,
                                          @RequestHeader("enrollmentId") String enrollmentId) throws IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidCipherTextException {
+
+        // check parameters and required fields
+        Optional<CAParamsEntity> params = caParamsRepository.findFirstByOrderByIdDesc();
+        if (params.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        // get certification request
+        JcaPKCS10CertificationRequest request = new JcaPKCS10CertificationRequest(new PemReader(new InputStreamReader(csr.getInputStream())).readPemObject().getContent());
+        // get public key and check key length
+        RSAPublicKey rsaPublicKey = (RSAPublicKey) request.getPublicKey();
+        if (rsaPublicKey.getModulus().bitLength() != params.get().getKeySize()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        // check required parameters
+        if (params.get().getCountry() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_COUNTRY.equals(rdn.getFirst().getType().getId()))
+                || params.get().getState() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_STATE.equals(rdn.getFirst().getType().getId()))
+                || params.get().getLocality() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_LOCALITY.equals(rdn.getFirst().getType().getId()))
+                || params.get().getOrzanization() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_ORGANIZATION.equals(rdn.getFirst().getType().getId()))
+                || params.get().getOrganizationalUnit() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_ORGANIZATION.equals(rdn.getFirst().getType().getId()))
+                || params.get().getCommonName() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_COMMON_NAME.equals(rdn.getFirst().getType().getId()))
+                || params.get().getEmail() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_EMAIL.equals(rdn.getFirst().getType().getId()))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+
         CSR response = new CSR();
 
         CSREntity csrEntity = new CSREntity();
@@ -91,12 +124,8 @@ public class CSRController {
         csrEntity.setCountryEntity(countryRepository.findById(countryId).get());
         csrEntity.setEnrollmentId(enrollmentId);
         csrEntity.setStatusEntity(statusRepository.findById(requestedId).get());
+        csrEntity.setCaParamsEntity(caParamsRepository.findFirstByOrderByIdDesc().get());
         csrRepository.save(csrEntity);
-
-        // get public key
-        PemReader pemReader = new PemReader(new InputStreamReader(csr.getInputStream()));
-        JcaPKCS10CertificationRequest jcaPKCS10CertificationRequest = new JcaPKCS10CertificationRequest(pemReader.readPemObject().getContent());
-        RSAPublicKey rsaPublicKey = (RSAPublicKey) jcaPKCS10CertificationRequest.getPublicKey();
 
         // encrypt token with public key
         PKCS1Encoding pkcs1Encoding = new PKCS1Encoding(new RSAEngine());
@@ -133,6 +162,79 @@ public class CSRController {
         response.setEncryptedToken(Base64.getEncoder().encodeToString(encrypted));
 
         return response;
+    }
+
+    @PutMapping(path = "/{id}/approve")
+    public @ResponseBody CSREntity updateCSR(@PathVariable Integer id) throws IOException, InterruptedException {
+        // TODO: authentication
+
+        // get csr entry and ca params
+        Optional<CSREntity> optionalCSREntity = csrRepository.findById(id);
+        if (optionalCSREntity.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        CSREntity csrEntity = optionalCSREntity.get();
+        CAParamsEntity caParamsEntity = csrEntity.getCaParamsEntity();
+
+        // get csr (from filesystem/aws s3 bucket)
+        S3Client s3Client = S3Client.create();
+        InputStream csr = s3Client.getObject(GetObjectRequest.builder().bucket("frica").key(id.toString() + ".csr").build());
+        File f = new File(certsFolder + "/" + id.toString() + ".csr");
+        if (f.exists()) {
+            f.delete();
+        }
+        f.createNewFile();
+        FileOutputStream fos = new FileOutputStream(f);
+        fos.write(csr.readAllBytes());
+        fos.close();
+
+        // get ca private key and cert from filesystem/aws s3 bucket
+        InputStream caKey = s3Client.getObject(GetObjectRequest.builder().bucket("frica").key("ca_" + caParamsEntity.getId() + ".key").build());
+        f = new File(certsFolder + "/ca_" + caParamsEntity.getId() + ".key");
+        if (f.exists()) {
+            f.delete();
+        }
+        f.createNewFile();
+        fos = new FileOutputStream(f);
+        fos.write(caKey.readAllBytes());
+        fos.close();
+
+        InputStream caCrt = s3Client.getObject(GetObjectRequest.builder().bucket("frica").key("ca_" + caParamsEntity.getId() + ".crt").build());
+        f = new File(certsFolder + "/ca_" + caParamsEntity.getId() + ".crt");
+        if (f.exists()) {
+            f.delete();
+        }
+        f.createNewFile();
+        fos = new FileOutputStream(f);
+        fos.write(caCrt.readAllBytes());
+        fos.close();
+
+        // openssl sign command
+        // TODO: ca password environment parameter
+        String command = String.format("openssl x509 -req -in %s.csr -CA %s.crt -CAkey %s.key -CAcreateserial -out %s.crt -days %s -passin pass:password",
+                certsFolder + "/" + id,
+                certsFolder + "/ca_" + caParamsEntity.getId(),
+                certsFolder + "/ca_" + caParamsEntity.getId(),
+                certsFolder + "/" + id,
+                caParamsEntity.getValidDays());
+        Process p = Runtime.getRuntime().exec(command);
+        int exitCode = p.waitFor();
+        if (exitCode != 0) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        // save signed crt to s3
+        s3Client.putObject(PutObjectRequest.builder().bucket("frica").key(id + ".crt").build(),
+                RequestBody.fromBytes(
+                        new FileInputStream(new File(certsFolder + "/" + id + ".crt")).readAllBytes())
+        );
+        s3Client.close();
+
+        // update status
+        csrEntity.setStatusEntity(statusRepository.findById(2).get());
+        csrRepository.save(csrEntity);
+
+        return csrEntity;
     }
 
     @GetMapping(path = "/crt", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
