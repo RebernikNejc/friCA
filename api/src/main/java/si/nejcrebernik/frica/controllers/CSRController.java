@@ -53,12 +53,6 @@ public class CSRController {
     @Autowired
     private CAParamsRepository caParamsRepository;
 
-    @Value("${db.requested.id}")
-    private Integer requestedId;
-
-    @Value("${db.delivered.id}")
-    private Integer deliveredId;
-
     @Value("${certs.folder}")
     private String certsFolder;
 
@@ -88,9 +82,7 @@ public class CSRController {
     public @ResponseBody CSR sendCSR(@RequestParam("csr") MultipartFile csr,
                                          @RequestHeader("email") String email,
                                          @RequestHeader("name") String name,
-                                         @RequestHeader("surname") String surname,
-                                         @RequestHeader("country") Integer countryId,
-                                         @RequestHeader("enrollmentId") String enrollmentId) throws IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidCipherTextException {
+                                         @RequestHeader("surname") String surname) throws IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidCipherTextException {
 
         // check parameters and required fields
         Optional<CAParamsEntity> params = caParamsRepository.findFirstByOrderByIdDesc();
@@ -105,13 +97,16 @@ public class CSRController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
         // check required parameters
-        if (params.get().getCountry() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_COUNTRY.equals(rdn.getFirst().getType().getId()))
-                || params.get().getState() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_STATE.equals(rdn.getFirst().getType().getId()))
-                || params.get().getLocality() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_LOCALITY.equals(rdn.getFirst().getType().getId()))
-                || params.get().getOrzanization() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_ORGANIZATION.equals(rdn.getFirst().getType().getId()))
-                || params.get().getOrganizationalUnit() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_ORGANIZATION.equals(rdn.getFirst().getType().getId()))
-                || params.get().getCommonName() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_COMMON_NAME.equals(rdn.getFirst().getType().getId()))
-                || params.get().getEmail() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_EMAIL.equals(rdn.getFirst().getType().getId()))) {
+        boolean b1 = params.get().getCountry() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_COUNTRY.equals(rdn.getFirst().getType().getId()));
+        boolean b2 = params.get().getState() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_STATE.equals(rdn.getFirst().getType().getId()));
+        boolean b3 = params.get().getLocality() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_LOCALITY.equals(rdn.getFirst().getType().getId()));
+        boolean b4 = params.get().getOrzanization() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_ORGANIZATION.equals(rdn.getFirst().getType().getId()));
+//        boolean b5 = params.get().getOrganizationalUnit() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_ORGANIZATIONAL_UNIT.equals(rdn.getFirst().getType().getId()));
+        boolean b5 = false;
+        boolean b6 = params.get().getCommonName() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_COMMON_NAME.equals(rdn.getFirst().getType().getId()));
+        boolean b7 = params.get().getEmail() && Arrays.stream(request.getSubject().getRDNs()).noneMatch(rdn -> CSR_EMAIL.equals(rdn.getFirst().getType().getId()));
+        b7 = false;
+        if (b1 || b2 || b3 || b4 || b5 || b6 || b7) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
 
@@ -121,9 +116,7 @@ public class CSRController {
         csrEntity.setEmail(email);
         csrEntity.setName(name);
         csrEntity.setSurname(surname);
-        csrEntity.setCountryEntity(countryRepository.findById(countryId).get());
-        csrEntity.setEnrollmentId(enrollmentId);
-        csrEntity.setStatusEntity(statusRepository.findById(requestedId).get());
+        csrEntity.setStatusEntity(statusRepository.findById(1).get());
         csrEntity.setCaParamsEntity(caParamsRepository.findFirstByOrderByIdDesc().get());
         csrRepository.save(csrEntity);
 
@@ -252,7 +245,7 @@ public class CSRController {
                 } else {
                     FileInputStream fileInputStream = new FileInputStream(certsFolder + "/" + id + ".crt");
                     byte[] file = fileInputStream.readAllBytes();
-                    csrEntity.get().setStatusEntity(statusRepository.findById(deliveredId).get());
+                    csrEntity.get().setStatusEntity(statusRepository.findById(3).get());
                     csrRepository.save(csrEntity.get());
                     return file;
                 }
