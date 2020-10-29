@@ -7,6 +7,8 @@ const NodeRSA = require("node-rsa");
 
 const HOST = "http://127.0.0.1:8443";
 
+let params = null;
+
 function init() {
     ipcMain.handle("open", (event, args) => {
         switch (args) {
@@ -26,40 +28,57 @@ function init() {
         win.loadFile("./html/index.html");
     });
 
+    ipcMain.handle("ca-params", (event, args) => {
+        Request.get({
+            url: HOST + "/ca-params"
+        }, (error, response, body) => {
+            event.sender.send("ca-params", JSON.parse(body));
+        });
+    });
+
     ipcMain.handle("request", (event, args) => {
-        // generate private key and csr
-        let time = Date.now();
-        let command = 'openssl req -new -newkey rsa:4096 -nodes -keyout ' + time + '.key -out ' + time + '.csr -subj "/C=SI/ST=/L=/O=/OU=/CN=' + args.name + ' ' + args.surname + '"';
-        console.log(command);
-        execSync(command);
-        // make request on API
-        console.log(args);
-        let req = Request.post({
-            url: HOST + "/csr",
-            headers: {
-                "name": args.name,
-                "surname": args.surname,
-                "email": args.email,
-                "country": args.country,
-                "enrollmentId": args.enrollmentId
-            },
-            rejectUnauthorized: false
+        Request.get({
+            url: HOST + "/ca-params"
         }, (error, response, body) => {
             if (error) {
                 console.log(error);
-                // show fail page
-                win.loadURL(__dirname + "/html/request-fail.html");
                 return;
             }
-            let g = JSON.parse(body);
-            // rename file
-            fs.renameSync(time + ".csr", g.id + ".csr");
-            fs.renameSync(time + ".key", g.id + ".key");
-            fs.writeFileSync(g.id + ".token", g.encryptedToken);
-            // show confirmation page with info
-            win.loadURL(__dirname + "/html/request-success.html?id=" + g.id + "&token=" + g.token);
+            let j = JSON.parse(body);
+            let time = Date.now();
+            // generate private key and csr
+            let command = createCsrCommand(j.keySize, time, args.country, args.state, args.locality, args.organization, args.organizationalUnit, args.commonName);
+
+            console.log(command);
+
+            execSync(command);
+            // make request on API
+            console.log(args);
+            let req = Request.post({
+                url: HOST + "/csr",
+                headers: {
+                    "name": args.name,
+                    "surname": args.surname,
+                    "email": args.email
+                }
+            }, (error, response, body) => {
+                if (error) {
+                    console.log(error);
+                    // show fail page
+                    win.loadURL(__dirname + "/html/request-fail.html");
+                    return;
+                }
+                let g = JSON.parse(body);
+                console.log(g);
+                // rename file
+                fs.renameSync(time + ".csr", g.id + ".csr");
+                fs.renameSync(time + ".key", g.id + ".key");
+                fs.writeFileSync(g.id + ".token", g.encryptedToken);
+                // show confirmation page with info
+                win.loadURL(__dirname + "/html/request-success.html?id=" + g.id);
+            });
+            req.form().append("csr", fs.createReadStream(time + ".csr"));
         });
-        req.form().append("csr", fs.createReadStream(time + ".csr"));
     });
 
     ipcMain.handle("progress", (event, args) => {
@@ -70,6 +89,7 @@ function init() {
         // find .csr, .key and .token triplets and list them
         let files = fs.readdirSync(".");
         for (let file of files) {
+            console.log(file);
             let s = file.split(".");
             if (s.length == 2) {
                 if (s[1] == "csr") {
@@ -167,14 +187,18 @@ function init() {
     });
 
     const win = new BrowserWindow({
-        width: 800,
-        height: 600,
+        width: 1092,
+        height: 614,
         webPreferences: {
             nodeIntegration: true
         }
     });
     // win.setMenuBarVisibility(false)
     win.loadFile("./html/index.html");
+}
+
+function createCsrCommand(keySize, filename, country, state, locality, organization, organizationalUnit, commonName) {
+    return 'openssl req -new -newkey rsa:' + keySize + ' -nodes -keyout ' + filename + '.key -out ' + filename + '.csr -subj "/C=' + country + '/ST=' + state + '/L=' + locality + '/O='+ organization + '/OU=' + organizationalUnit + '/CN=' + commonName + '"';
 }
 
 app.whenReady().then(init);
