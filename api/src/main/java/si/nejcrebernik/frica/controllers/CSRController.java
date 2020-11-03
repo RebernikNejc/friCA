@@ -70,8 +70,6 @@ public class CSRController {
                 csr.setId(csrEntity.get().getId());
                 csr.setName(csrEntity.get().getName());
                 csr.setSurname(csrEntity.get().getSurname());
-                csr.setCountry(csrEntity.get().getCountryEntity().getName());
-                csr.setEnrollmentId(csrEntity.get().getEnrollmentId());
                 csr.setStatus(csrEntity.get().getStatusEntity().getName());
                 return csr;
             }
