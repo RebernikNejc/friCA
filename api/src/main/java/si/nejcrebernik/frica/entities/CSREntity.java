@@ -1,6 +1,7 @@
 package si.nejcrebernik.frica.entities;
 
 import javax.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity(name = "csr")
 public class CSREntity {
@@ -20,6 +21,11 @@ public class CSREntity {
     private StatusEntity statusEntity;
     private String token;
     private String encryptedToken;
+    private LocalDateTime received;
+    private LocalDateTime approved;
+    private LocalDateTime delivered;
+    private LocalDateTime rejected;
+
 
     public Integer getId() {
         return id;
@@ -99,5 +105,37 @@ public class CSREntity {
 
     public void setCaParamsEntity(CAParamsEntity caParamsEntity) {
         this.caParamsEntity = caParamsEntity;
+    }
+
+    public LocalDateTime getReceived() {
+        return received;
+    }
+
+    public void setReceived(LocalDateTime received) {
+        this.received = received;
+    }
+
+    public LocalDateTime getApproved() {
+        return approved;
+    }
+
+    public void setApproved(LocalDateTime approved) {
+        this.approved = approved;
+    }
+
+    public LocalDateTime getDelivered() {
+        return delivered;
+    }
+
+    public void setDelivered(LocalDateTime delivered) {
+        this.delivered = delivered;
+    }
+
+    public LocalDateTime getRejected() {
+        return rejected;
+    }
+
+    public void setRejected(LocalDateTime rejected) {
+        this.rejected = rejected;
     }
 }

@@ -30,6 +30,7 @@ import java.io.*;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Optional;
@@ -70,7 +71,11 @@ public class CSRController {
                 csr.setId(csrEntity.get().getId());
                 csr.setName(csrEntity.get().getName());
                 csr.setSurname(csrEntity.get().getSurname());
-                csr.setStatus(csrEntity.get().getStatusEntity().getName());
+                csr.setStatus(csrEntity.get().getStatusEntity());
+                csr.setReceived(csrEntity.get().getReceived());
+                csr.setApproved(csrEntity.get().getApproved());
+                csr.setDelivered(csrEntity.get().getDelivered());
+                csr.setRejected(csrEntity.get().getRejected());
                 return csr;
             }
         }
@@ -147,6 +152,7 @@ public class CSRController {
 
         csrEntity.setToken(Base64.getEncoder().encodeToString(token));
         csrEntity.setEncryptedToken(Base64.getEncoder().encodeToString(encrypted));
+        csrEntity.setReceived(LocalDateTime.now());
         csrRepository.save(csrEntity);
 
         response.setId(csrEntity.getId());
@@ -223,6 +229,7 @@ public class CSRController {
 
         // update status
         csrEntity.setStatusEntity(statusRepository.findById(2).get());
+        csrEntity.setApproved(LocalDateTime.now());
         csrRepository.save(csrEntity);
 
         return csrEntity;
@@ -244,6 +251,7 @@ public class CSRController {
                     FileInputStream fileInputStream = new FileInputStream(certsFolder + "/" + id + ".crt");
                     byte[] file = fileInputStream.readAllBytes();
                     csrEntity.get().setStatusEntity(statusRepository.findById(3).get());
+                    csrEntity.get().setDelivered(LocalDateTime.now());
                     csrRepository.save(csrEntity.get());
                     return file;
                 }

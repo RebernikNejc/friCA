@@ -1,6 +1,9 @@
 package si.nejcrebernik.frica;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import si.nejcrebernik.frica.entities.StatusEntity;
+
+import java.time.LocalDateTime;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CSR {
@@ -11,8 +14,12 @@ public class CSR {
     private String surname;
     private String country;
     private String enrollmentId;
-    private String status;
+    private StatusEntity status;
     private String encryptedToken;
+    private LocalDateTime received;
+    private LocalDateTime approved;
+    private LocalDateTime delivered;
+    private LocalDateTime rejected;
 
     public Integer getId() {
         return id;
@@ -62,11 +69,11 @@ public class CSR {
         this.enrollmentId = enrollmentId;
     }
 
-    public String getStatus() {
+    public StatusEntity getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(StatusEntity status) {
         this.status = status;
     }
 
@@ -76,5 +83,37 @@ public class CSR {
 
     public void setEncryptedToken(String encryptedToken) {
         this.encryptedToken = encryptedToken;
+    }
+
+    public LocalDateTime getReceived() {
+        return received;
+    }
+
+    public void setReceived(LocalDateTime received) {
+        this.received = received;
+    }
+
+    public LocalDateTime getApproved() {
+        return approved;
+    }
+
+    public void setApproved(LocalDateTime approved) {
+        this.approved = approved;
+    }
+
+    public LocalDateTime getDelivered() {
+        return delivered;
+    }
+
+    public void setDelivered(LocalDateTime delivered) {
+        this.delivered = delivered;
+    }
+
+    public LocalDateTime getRejected() {
+        return rejected;
+    }
+
+    public void setRejected(LocalDateTime rejected) {
+        this.rejected = rejected;
     }
 }
