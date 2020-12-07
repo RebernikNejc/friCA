@@ -5,6 +5,7 @@ import org.bouncycastle.crypto.encodings.PKCS1Encoding;
 import org.bouncycastle.crypto.engines.RSAEngine;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
+import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,8 +29,14 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.*;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Base64;
@@ -79,6 +86,30 @@ public class CSRController {
                 return csr;
             }
         }
+    }
+
+    @GetMapping(path = "/decrypt")
+    public @ResponseBody String decrypt(@RequestHeader("data") String token,
+                                            @RequestHeader("key") MultipartFile key) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, InvalidCipherTextException {
+        byte[] tokenb = Base64.getDecoder().decode(token);
+
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        InputStreamReader inputStreamReader = new InputStreamReader(key.getInputStream());
+        PemReader pemReader = new PemReader(inputStreamReader);
+        PemObject pemObject = pemReader.readPemObject();
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(pemObject.getContent());
+        RSAPrivateKey rsaPrivateKey = (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
+
+        // encrypt token with public key
+        PKCS1Encoding pkcs1Encoding = new PKCS1Encoding(new RSAEngine());
+        RSAKeyParameters rsaKeyParameters = new RSAKeyParameters(true, rsaPrivateKey.getModulus(), rsaPrivateKey.getPrivateExponent());
+        pkcs1Encoding.init(false, rsaKeyParameters);
+        // generate token
+        //byte[] tokenb = new byte[pkcs1Encoding.getInputBlockSize()];
+        //tokenb = token.getBytes();
+        // decrypt
+        byte[] decrypted = pkcs1Encoding.processBlock(tokenb, 0, tokenb.length);
+        return Base64.getEncoder().encodeToString(decrypted);
     }
 
     @PostMapping
