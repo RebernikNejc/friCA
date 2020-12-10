@@ -192,6 +192,20 @@ public class CSRController {
         return response;
     }
 
+    @PutMapping(path = "/{id}/reject")
+    public @ResponseBody CSREntity rejectCSR(@PathVariable Integer id) {
+        Optional<CSREntity> optionalCSREntity = csrRepository.findById(id);
+        if (optionalCSREntity.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        CSREntity csrEntity = optionalCSREntity.get();
+        csrEntity.setStatusEntity(statusRepository.findById(4).get());
+        csrEntity.setRejected(LocalDateTime.now());
+        csrRepository.save(csrEntity);
+
+        return csrEntity;
+    }
+
     @PutMapping(path = "/{id}/approve")
     public @ResponseBody CSREntity updateCSR(@PathVariable Integer id) throws IOException, InterruptedException {
         // TODO: authentication
