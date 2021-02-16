@@ -64,6 +64,9 @@ public class CSRController {
     @Value("${certs.folder}")
     private String certsFolder;
 
+    @Value("${environment:onprem}")
+    private String environment;
+
     @GetMapping
     public @ResponseBody CSR getCSR(@RequestHeader("id") Integer id,
                                     @RequestHeader("token") String token) {
@@ -165,21 +168,21 @@ public class CSRController {
         // encrypt
         byte[] encrypted = pkcs1Encoding.processBlock(token, 0, token.length);
 
-        // saving to filesystem
-        File directory = new File(certsFolder);
-        if (!directory.exists()) {
-            directory.mkdir();
+        if ("onprem".equals(environment)) { // save to filesystem
+            File directory = new File(certsFolder);
+            if (!directory.exists()) {
+                directory.mkdir();
+            }
+            String filePath = certsFolder + "/" + csrEntity.getId() + ".csr";
+            FileOutputStream fos = new FileOutputStream(filePath);
+            fos.write(csr.getBytes());
+            fos.close();
+        } else { // save to S3 bucket - only for testing purposes
+            S3Client s3Client = S3Client.create();
+            s3Client.putObject(PutObjectRequest.builder().bucket("frica").key(csrEntity.getId().toString() + ".csr").build(),
+                    RequestBody.fromBytes(csr.getBytes()));
+            s3Client.close();
         }
-        String filePath = certsFolder + "/" + csrEntity.getId() + ".csr";
-        FileOutputStream fos = new FileOutputStream(filePath);
-        fos.write(csr.getBytes());
-        fos.close();
-
-        // saving to S3 bucket
-        S3Client s3Client = S3Client.create();
-        s3Client.putObject(PutObjectRequest.builder().bucket("frica").key(csrEntity.getId().toString() + ".csr").build(),
-                RequestBody.fromBytes(csr.getBytes()));
-        s3Client.close();
 
         csrEntity.setToken(Base64.getEncoder().encodeToString(token));
         csrEntity.setEncryptedToken(Base64.getEncoder().encodeToString(encrypted));
@@ -220,36 +223,37 @@ public class CSRController {
 
         // get csr (from filesystem/aws s3 bucket)
         S3Client s3Client = S3Client.create();
-        InputStream csr = s3Client.getObject(GetObjectRequest.builder().bucket("frica").key(id.toString() + ".csr").build());
-        File f = new File(certsFolder + "/" + id.toString() + ".csr");
-        if (f.exists()) {
-            f.delete();
-        }
-        f.createNewFile();
-        FileOutputStream fos = new FileOutputStream(f);
-        fos.write(csr.readAllBytes());
-        fos.close();
+        if (!environment.equals("onprem")) {
+            InputStream csr = s3Client.getObject(GetObjectRequest.builder().bucket("frica").key(id.toString() + ".csr").build());
+            File f = new File(certsFolder + "/" + id.toString() + ".csr");
+            if (f.exists()) {
+                f.delete();
+            }
+            f.createNewFile();
+            FileOutputStream fos = new FileOutputStream(f);
+            fos.write(csr.readAllBytes());
+            fos.close();
 
-        // get ca private key and cert from filesystem/aws s3 bucket
-        InputStream caKey = s3Client.getObject(GetObjectRequest.builder().bucket("frica").key("ca_" + caParamsEntity.getId() + ".key").build());
-        f = new File(certsFolder + "/ca_" + caParamsEntity.getId() + ".key");
-        if (f.exists()) {
-            f.delete();
-        }
-        f.createNewFile();
-        fos = new FileOutputStream(f);
-        fos.write(caKey.readAllBytes());
-        fos.close();
+            InputStream caKey = s3Client.getObject(GetObjectRequest.builder().bucket("frica").key("ca_" + caParamsEntity.getId() + ".key").build());
+            f = new File(certsFolder + "/ca_" + caParamsEntity.getId() + ".key");
+            if (f.exists()) {
+                f.delete();
+            }
+            f.createNewFile();
+            fos = new FileOutputStream(f);
+            fos.write(caKey.readAllBytes());
+            fos.close();
 
-        InputStream caCrt = s3Client.getObject(GetObjectRequest.builder().bucket("frica").key("ca_" + caParamsEntity.getId() + ".crt").build());
-        f = new File(certsFolder + "/ca_" + caParamsEntity.getId() + ".crt");
-        if (f.exists()) {
-            f.delete();
+            InputStream caCrt = s3Client.getObject(GetObjectRequest.builder().bucket("frica").key("ca_" + caParamsEntity.getId() + ".crt").build());
+            f = new File(certsFolder + "/ca_" + caParamsEntity.getId() + ".crt");
+            if (f.exists()) {
+                f.delete();
+            }
+            f.createNewFile();
+            fos = new FileOutputStream(f);
+            fos.write(caCrt.readAllBytes());
+            fos.close();
         }
-        f.createNewFile();
-        fos = new FileOutputStream(f);
-        fos.write(caCrt.readAllBytes());
-        fos.close();
 
         // openssl sign command
         // TODO: ca password environment parameter
@@ -266,11 +270,13 @@ public class CSRController {
         }
 
         // save signed crt to s3
-        s3Client.putObject(PutObjectRequest.builder().bucket("frica").key(id + ".crt").build(),
-                RequestBody.fromBytes(
-                        new FileInputStream(new File(certsFolder + "/" + id + ".crt")).readAllBytes())
-        );
-        s3Client.close();
+        if (!environment.equals("onprem")) {
+            s3Client.putObject(PutObjectRequest.builder().bucket("frica").key(id + ".crt").build(),
+                    RequestBody.fromBytes(
+                            new FileInputStream(new File(certsFolder + "/" + id + ".crt")).readAllBytes())
+            );
+            s3Client.close();
+        }
 
         // update status
         csrEntity.setStatusEntity(statusRepository.findById(2).get());
